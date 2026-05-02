@@ -3,7 +3,6 @@
   "short_name": "BingoFriends",
   "description": "Dein persönliches Bingo-Board",
   "start_url": "/index.html",
-  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f5f3eb",
