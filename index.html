@@ -35,11 +35,7 @@
       overflow: hidden; padding: 4px;
     }
     .cell:hover { background: #eef2ff; transform: scale(1.03); }
-    .cell-text {
-      font-size: clamp(7px, 1.8vw, 15px);
-      line-height: 1.2; text-align: center;
-      word-break: break-word; padding: 2px;
-    }
+    .cell-text { font-size: clamp(7px, 1.8vw, 15px); line-height: 1.2; text-align: center; word-break: break-word; padding: 2px; }
     .cell input { width: 90%; border: none; text-align: center; outline: none; font-size: 15px; background: transparent; }
     .state-green { background: #dcfce7 !important; color: #166534; }
     .state-red   { background: #fee2e2 !important; color: #991b1b; }
@@ -50,6 +46,7 @@
     .progress-track { background: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 999px; background: #4ade80; transition: width 0.3s ease; }
     .pdf-header { display: none; }
+    .pdf-footer { display: none; }
     @media print {
       @page { size: A4 portrait; margin: 15mm; }
       body { background: white; margin: 0; }
@@ -58,6 +55,7 @@
       .pdf-header { display: flex !important; justify-content: space-between; align-items: flex-end; margin-bottom: 8mm; border-bottom: 1px solid #ccc; padding-bottom: 4mm; }
       .pdf-header-title { font-size: 22pt; font-weight: bold; color: #111; }
       .pdf-header-year { font-size: 14pt; color: #555; }
+      .pdf-footer { display: block !important; text-align: center; margin-top: 8mm; border-top: 1px solid #ccc; padding-top: 4mm; font-size: 11pt; color: #555; font-style: italic; }
       .progress-wrap { max-width: 100%; margin-bottom: 6mm; }
       .progress-label { font-size: 10pt; color: #333; }
       .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; }
@@ -91,7 +89,7 @@
   <div class="no-print">
     <button onclick="back()">Zur Übersicht</button>
     <button onclick="openEdit(currentBoardId)">Bearbeiten</button>
-    <button onclick="printBoard()">⬇ Als PDF</button>
+    <button onclick="printBoard()">PDF</button>
   </div>
   <div class="pdf-header">
     <div class="pdf-header-title" id="pdfTitle">BingoFriends</div>
@@ -107,6 +105,7 @@
     </div>
   </div>
   <div id="viewGrid" class="grid"></div>
+  <div class="pdf-footer">For my Friends</div>
 </div>
 
 <div id="editBoard" class="view">
@@ -301,12 +300,11 @@
   function openView(id) {
     currentBoardId = id;
     const data = getBoards()[id].data;
-    // Migration: checked -> state
     board = data.map(c => ({
       text: c.text,
       state: c.state !== undefined ? c.state : (c.checked ? 1 : 0)
     }));
-    bingoAlreadyFired = false;
+    lastBingoCount = 0;
     renderView();
     show("viewBoard");
   }
