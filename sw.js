@@ -1,4 +1,4 @@
-const CACHE = "bingofriends-v3";
+const CACHE = "bingofriends-v4";
 const ASSETS = [
   "/index.html",
   "/manifest.json",
