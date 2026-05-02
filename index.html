@@ -26,16 +26,60 @@
     .view-btn:hover svg { stroke: #3b82f6; }
     .edit-btn:hover svg { stroke: #f59e0b; }
     .delete-btn:hover svg { stroke: #ef4444; }
+
+    /* GRID */
     .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; max-width: 520px; margin: 20px auto; padding: 10px; }
-    .cell { width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; background: white; display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: 0.15s; }
+
+    /* CELL — feste Größe, Text skaliert automatisch */
+    .cell {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 16px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+      overflow: hidden;
+      padding: 4px;
+    }
     .cell:hover { background: #eef2ff; transform: scale(1.03); }
-    .checked { background: #dcfce7 !important; color: #166534; }
-    .cell input { width: 90%; border: none; text-align: center; outline: none; font-size: 15px; background: transparent; }
+
+    /* Text skaliert via container query / font-size clamp */
+    .cell-text {
+      display: block;
+      width: 100%;
+      text-align: center;
+      font-size: clamp(7px, 2.2vw, 15px);
+      line-height: 1.2;
+      word-break: break-word;
+      hyphens: auto;
+      overflow: hidden;
+    }
+
+    /* Zustände */
+    .state-green { background: #dcfce7 !important; color: #166534; }
+    .state-red   { background: #fee2e2 !important; color: #991b1b; }
+
+    /* Edit-Zelle */
+    .cell input {
+      width: 90%;
+      border: none;
+      text-align: center;
+      outline: none;
+      font-size: clamp(7px, 2.2vw, 15px);
+      background: transparent;
+    }
+
+    /* PROGRESS BAR */
     .progress-wrap { max-width: 520px; margin: 0 auto 4px auto; padding: 0 10px; }
     .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; }
     .progress-track { background: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 999px; background: #4ade80; transition: width 0.3s ease; }
+
     .pdf-header { display: none; }
+
     @media print {
       @page { size: A4 portrait; margin: 15mm; }
       body { background: white; margin: 0; }
@@ -49,8 +93,10 @@
       .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; }
       .progress-fill { border-radius: 4px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .grid { display: grid !important; grid-template-columns: repeat(5, 1fr); gap: 6mm; max-width: 100%; margin: 0 auto; padding: 0; }
-      .cell { aspect-ratio: 1 / 1; border-radius: 8px; border: 1px solid #ddd; background: #f9f9f9; display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .cell.checked { background: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+      .cell { aspect-ratio: 1 / 1; border-radius: 8px; border: 1px solid #ddd; background: #f9f9f9; display: flex; align-items: center; justify-content: center; padding: 4px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .cell-text { font-size: 7pt; }
+      .state-green { background: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+      .state-red   { background: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important; }
       button { display: none !important; }
     }
   </style>
@@ -130,9 +176,10 @@
     document.getElementById(v).classList.add("active");
   }
 
+  /* Fortschritt: nur grüne Felder zählen */
   function updateProgress() {
     const total = board.length;
-    const checked = board.filter(c => c.checked).length;
+    const checked = board.filter(c => c.state === 1).length;
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     document.getElementById("progressFill").style.width = pct + "%";
     document.getElementById("progressText").textContent = pct + " %";
@@ -147,7 +194,8 @@
 
   function createBoard() {
     const year = document.getElementById("yearSelect").value;
-    board = Array.from({ length: 25 }, () => ({ text: "", checked: false }));
+    // state: 0 = weiß, 1 = grün, 2 = rot
+    board = Array.from({ length: 25 }, () => ({ text: "", state: 0 }));
     board[12].text = year;
     currentBoardId = Date.now().toString();
     const boards = getBoards();
@@ -214,8 +262,14 @@
   }
 
   function openView(id) {
+    const boards = getBoards();
     currentBoardId = id;
-    board = getBoards()[id].data;
+    board = boards[id].data;
+    // Alte boards (mit checked statt state) migrieren
+    board = board.map(c => ({
+      text: c.text,
+      state: c.state !== undefined ? c.state : (c.checked ? 1 : 0)
+    }));
     renderView();
     show("viewBoard");
   }
@@ -225,9 +279,21 @@
     grid.innerHTML = "";
     board.forEach((c, i) => {
       const d = document.createElement("div");
-      d.className = "cell" + (c.checked ? " checked" : "");
-      d.textContent = c.text;
-      d.onclick = () => { board[i].checked = !board[i].checked; save(); renderView(); };
+      d.className = "cell";
+      if (c.state === 1) d.classList.add("state-green");
+      if (c.state === 2) d.classList.add("state-red");
+
+      const span = document.createElement("span");
+      span.className = "cell-text";
+      span.textContent = c.text;
+      d.appendChild(span);
+
+      d.onclick = () => {
+        // 0 → 1 → 2 → 0
+        board[i].state = (board[i].state + 1) % 3;
+        save();
+        renderView();
+      };
       grid.appendChild(d);
     });
     updateProgress();
@@ -237,6 +303,10 @@
     const boards = getBoards();
     currentBoardId = id;
     board = boards[id].data;
+    board = board.map(c => ({
+      text: c.text,
+      state: c.state !== undefined ? c.state : (c.checked ? 1 : 0)
+    }));
     document.getElementById("editName").value = boards[id].name;
     renderEdit();
     show("editBoard");
